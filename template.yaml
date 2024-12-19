@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  # Lambda Function
+  ProcessFileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.11
+      CodeUri: .
+      MemorySize: 2048
+      Timeout: 300
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref RawEmailBucket
+        - S3CrudPolicy:
+            BucketName: !Ref POBucket
+        - S3CrudPolicy:
+            BucketName: !Ref InvoiceBucket
+        - S3CrudPolicy:
+            BucketName: !Ref HoldenJsonBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref POTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CompletedTable
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          RAW_EMAIL_BUCKET: !Ref RawEmailBucket
+          PO_BUCKET: !Ref POBucket
+          INVOICE_BUCKET: !Ref InvoiceBucket
+          HOLDEN_JSON_BUCKET: !Ref HoldenJsonBucket
+          PO_TABLE: !Ref POTable
+          COMPLETED_TABLE: !Ref CompletedTable
+          MODEL_PATH: "microsoft/layoutlmv3-base"
+          USE_ML_PROCESSING: "true"
+
+  # S3 Buckets
+  RawEmailBucket:
+    Type: AWS::S3::Bucket
+
+  POBucket:
+    Type: AWS::S3::Bucket
+
+  InvoiceBucket:
+    Type: AWS::S3::Bucket
+
+  HoldenJsonBucket:
+    Type: AWS::S3::Bucket
+
+  # DynamoDB Tables
+  POTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: po_number
+          AttributeType: S
+      KeySchema:
+        - AttributeName: po_number
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CompletedTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+Outputs:
+  ProcessFileFunction:
+    Description: Lambda function to process files
+    Value: !GetAtt ProcessFileFunction.Arn
+  RawEmailBucket:
+    Description: Raw email S3 bucket name
+    Value: !Ref RawEmailBucket
+  POBucket:
+    Description: PO S3 bucket name
+    Value: !Ref POBucket
+  InvoiceBucket:
+    Description: Invoice S3 bucket name
+    Value: !Ref InvoiceBucket
+  HoldenJsonBucket:
+    Description: Holden JSON S3 bucket name
+    Value: !Ref HoldenJsonBucket
+  POTable:
+    Description: DynamoDB table for POs
+    Value: !Ref POTable
+  CompletedTable:
+    Description: DynamoDB table for completed items
+    Value: !Ref CompletedTable
